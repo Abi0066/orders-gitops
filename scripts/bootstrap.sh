@@ -95,7 +95,15 @@ echo "== building orders-api images =="
 for v in v1 v2 v3; do
   # shellcheck disable=SC2086
   docker build $BUILD_OPTS -q -t "ghcr.io/abi0066/orders-api:${v}" "$API_DIR" >/dev/null
-  kind load docker-image "ghcr.io/abi0066/orders-api:${v}" --name "$CLUSTER"
+  # All three tags point at the same image, so kind tries to re-tag the already
+  # loaded ID first; under the podman provider that `ctr images tag` call fails and
+  # kind falls back to loading the archive, which works. The warning is noise on an
+  # otherwise successful path -- keep real errors, drop that one line.
+  if ! load_out=$(kind load docker-image "ghcr.io/abi0066/orders-api:${v}" --name "$CLUSTER" 2>&1); then
+    echo "$load_out" >&2
+    exit 1
+  fi
+  printf '%s\n' "$load_out" | grep -v 'failed to re-tag image' || true
 done
 
 # --- 6. application ----------------------------------------------------------

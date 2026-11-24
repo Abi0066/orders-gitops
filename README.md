@@ -329,7 +329,17 @@ with Trivy and — on `main` only, and only after the scan passes — pushes it 
 - `ghcr.io/abi0066/orders-api:latest`
 
 The package is publicly pullable — `podman pull ghcr.io/abi0066/orders-api:sha-<commit>`
-works with no credentials (verified).
+works with no credentials (verified). Signing is **keyless** (Fulcio certificate from
+the workflow's OIDC token + Rekor transparency log, no long-lived key), and buildx
+attaches build provenance and an SPDX SBOM as OCI attestations. Verification commands
+are in the [`orders-api` README](https://github.com/Abi0066/orders-api#verify-a-published-image);
+the short version:
+
+```bash
+cosign verify ghcr.io/abi0066/orders-api:sha-<commit> \
+  --certificate-identity-regexp 'https://github.com/Abi0066/orders-api/.github/workflows/ci.yml@refs/heads/main' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
 
 What is deliberately **not** automated: nothing bumps the tag in this repository.
 Pinning a release here is a commit (`scripts/bump-and-push.sh`), so a merge upstream
@@ -342,8 +352,10 @@ Dockerfile, same bytes. To run against GHCR instead, put a `sha-<commit>` tag in
 
 ## 11. Not done yet (next increments)
 
+- **No admission enforcement.** Images are signed and verifiable, but nothing in the
+  cluster *refuses* an unsigned image — a Kyverno or Connaisseur policy is the next
+  step, and it is what would turn "signed" into "only signed images run".
 - **No automatic tag bump** — see section 10: releasing is a commit on purpose.
-- **No image signature / provenance** (`cosign`), no SBOM published next to the image.
 - Progressive delivery of a *database-backed* service (migrations, backwards
   compatibility) is out of scope here.
 

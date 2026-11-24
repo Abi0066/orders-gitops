@@ -1,0 +1,49 @@
+Name:            orders-api
+Namespace:       orders
+Status:          [31m✖[0m Degraded
+Message:         RolloutAborted: Rollout aborted update to revision 21: Background analysis phase error/failed: Metric "success-rate" assessed Failed due to failed (3) > failureLimit (2)
+Strategy:        Canary
+  Step:          0/5
+  SetWeight:     0
+  ActualWeight:  0
+Images:          ghcr.io/abi0066/orders-api:v2 ([32mstable[0m)
+Replicas:
+  Desired:       5
+  Current:       5
+  Updated:       0
+  Ready:         5
+  Available:     5
+
+NAME                                    KIND         STATUS        AGE    INFO
+⟳ orders-api                            Rollout      [31m✖[0m Degraded    51m    
+├──# revision:21                                                          
+│  ├──⧉ [33morders-api-77c98d5c5b[0m           ReplicaSet   [0m•[0m ScaledDown  38m    [33mcanary[0m,delay:passed
+│  └──α [0morders-api-77c98d5c5b-21[0m        AnalysisRun  [31m✖[0m Failed      9m18s  [32m✔[0m 2,[31m✖[0m 3
+├──# revision:20                                                          
+│  ├──⧉ [32morders-api-647df887f7[0m           ReplicaSet   [32m✔[0m Healthy     42m    [32mstable[0m
+│  │  ├──□ orders-api-647df887f7-2p89s  Pod          [32m✔[0m Running     15m    ready:1/1
+│  │  ├──□ orders-api-647df887f7-5rlhp  Pod          [32m✔[0m Running     11m    ready:1/1
+│  │  ├──□ orders-api-647df887f7-bdnsx  Pod          [32m✔[0m Running     11m    ready:1/1
+│  │  ├──□ orders-api-647df887f7-bh5rs  Pod          [32m✔[0m Running     9m30s  ready:1/1
+│  │  └──□ orders-api-647df887f7-cp977  Pod          [32m✔[0m Running     9m30s  ready:1/1
+│  └──α [0morders-api-647df887f7-20[0m        AnalysisRun  [32m✔[0m Successful  12m    [32m✔[0m 15
+├──# revision:19                                                          
+│  └──⧉ orders-api-7d8889c5bf           ReplicaSet   [0m•[0m ScaledDown  51m    
+├──# revision:18                                                          
+│  └──α [0morders-api-647df887f7-18[0m        AnalysisRun  [32m✔[0m Successful  15m    [32m✔[0m 11
+├──# revision:16                                                          
+│  └──α [0morders-api-77c98d5c5b-16[0m        AnalysisRun  [31m✖[0m Failed      20m    [32m✔[0m 2,[31m✖[0m 3
+├──# revision:15                                                          
+│  └──α [0morders-api-647df887f7-15[0m        AnalysisRun  [32m✔[0m Successful  20m    
+├──# revision:14                                                          
+│  └──α [0morders-api-7d8889c5bf-14[0m        AnalysisRun  [32m✔[0m Successful  24m    [32m✔[0m 15
+├──# revision:13                                                          
+│  └──α [0morders-api-77c98d5c5b-13[0m        AnalysisRun  [31m✖[0m Failed      28m    [32m✔[0m 2,[31m✖[0m 3
+├──# revision:10                                                          
+│  └──α [0morders-api-77c98d5c5b-10[0m        AnalysisRun  [32m✔[0m Successful  32m    [32m✔[0m 15
+└──# revision:5                                                           
+   └──α [0morders-api-77c98d5c5b-5[0m         AnalysisRun  [31m⚠[0m Error       38m    [32m✔[0m 4,[31m⚠[0m 7
+--- message d'abandon ---
+RolloutAborted: Rollout aborted update to revision 21: Background analysis phase error/failed: Metric "success-rate" assessed Failed due to failed (3) > failureLimit (2)
+--- trafic réellement servi après rollback (attendu : 100% v2) ---
+     20 v2

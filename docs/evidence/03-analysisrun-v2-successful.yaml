@@ -1,0 +1,154 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "20"
+  creationTimestamp: "2026-11-24T09:59:11Z"
+  generation: 19
+  labels:
+    app: orders-api
+    rollout-type: Background
+    rollouts-pod-template-hash: 647df887f7
+  name: orders-api-647df887f7-20
+  namespace: orders
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Rollout
+    name: orders-api
+    uid: 5acec77a-438d-4b3c-940c-c0a1939ad945
+  resourceVersion: "30607"
+  uid: 3bb75c98-7863-4a33-a8fd-4f43ae9dbb4b
+spec:
+  args:
+  - name: canary-hash
+    value: 647df887f7
+  metrics:
+  - consecutiveErrorLimit: 8
+    failureLimit: 2
+    initialDelay: 45s
+    interval: 20s
+    name: success-rate
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local
+        authentication:
+          oauth2: {}
+          sigv4: {}
+        query: |
+          (
+            (sum(rate(http_requests_total{namespace="orders",route="/api/orders",status=~"2..",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m])) or on() vector(0))
+            /
+            clamp_min(sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m])), 0.001)
+          )
+          or on() vector(1)
+    successCondition: result[0] >= 0.95
+  - consecutiveErrorLimit: 8
+    failureLimit: 2
+    initialDelay: 60s
+    interval: 20s
+    name: canary-request-volume
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local
+        authentication:
+          oauth2: {}
+          sigv4: {}
+        query: |
+          sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m]))
+    successCondition: result[0] > 0
+  terminate: true
+status:
+  completedAt: "2026-11-24T10:02:19Z"
+  dryRunSummary: {}
+  message: Run Terminated
+  metricResults:
+  - consecutiveSuccess: 8
+    count: 8
+    measurements:
+    - finishedAt: "2026-11-24T09:59:56Z"
+      phase: Successful
+      startedAt: "2026-11-24T09:59:56Z"
+      value: '[1]'
+    - finishedAt: "2026-11-24T10:00:16Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:00:16Z"
+      value: '[1]'
+    - finishedAt: "2026-11-24T10:00:36Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:00:36Z"
+      value: '[1]'
+    - finishedAt: "2026-11-24T10:00:56Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:00:56Z"
+      value: '[1]'
+    - finishedAt: "2026-11-24T10:01:16Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:01:16Z"
+      value: '[1]'
+    - finishedAt: "2026-11-24T10:01:36Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:01:36Z"
+      value: '[1]'
+    - finishedAt: "2026-11-24T10:01:56Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:01:56Z"
+      value: '[1]'
+    - finishedAt: "2026-11-24T10:02:16Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:02:16Z"
+      value: '[1]'
+    metadata:
+      ResolvedPrometheusQuery: |
+        (
+          (sum(rate(http_requests_total{namespace="orders",route="/api/orders",status=~"2..",rollouts_pod_template_hash="647df887f7"}[2m])) or on() vector(0))
+          /
+          clamp_min(sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="647df887f7"}[2m])), 0.001)
+        )
+        or on() vector(1)
+    name: success-rate
+    phase: Successful
+    successful: 8
+  - consecutiveSuccess: 7
+    count: 7
+    measurements:
+    - finishedAt: "2026-11-24T10:00:11Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:00:11Z"
+      value: '[6.019246031746031]'
+    - finishedAt: "2026-11-24T10:00:31Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:00:31Z"
+      value: '[5.501178095238095]'
+    - finishedAt: "2026-11-24T10:00:51Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:00:51Z"
+      value: '[4.634189603174603]'
+    - finishedAt: "2026-11-24T10:01:11Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:01:11Z"
+      value: '[4.549330793650793]'
+    - finishedAt: "2026-11-24T10:01:31Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:01:31Z"
+      value: '[5.489682063492063]'
+    - finishedAt: "2026-11-24T10:01:51Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:01:51Z"
+      value: '[6.346589735449735]'
+    - finishedAt: "2026-11-24T10:02:11Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:02:11Z"
+      value: '[7.377343111111111]'
+    metadata:
+      ResolvedPrometheusQuery: |
+        sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="647df887f7"}[2m]))
+    name: canary-request-volume
+    phase: Successful
+    successful: 7
+  phase: Successful
+  runSummary:
+    count: 2
+    successful: 2
+  startedAt: "2026-11-24T09:59:11Z"

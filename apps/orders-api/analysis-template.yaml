@@ -1,0 +1,64 @@
+# Canary AnalysisTemplate.
+#
+# Three details make this analysis trustworthy, and all three are easy to get
+# wrong -- a naive version either never fails or fails the healthy release:
+#
+#  1. it only looks at route="/api/orders": kubelet probes (/ready, /live) and
+#     Prometheus scrapes (/metrics) dominate the request volume of an idle demo
+#     and would keep the success rate at ~100% even with a broken version;
+#  2. it filters on the canary's own pod-template hash, so stable traffic can
+#     never dilute the measurement (aggregating both would show ~99% success
+#     for a 20% canary that fails every single request);
+#  3. it tolerates a cold start. A pod that appeared 40s ago has fewer than two
+#     samples, so rate() returns an empty vector, which Argo Rollouts reports as
+#     a *metric error* -- and 7 errors in a row abort the rollout.
+#
+# The subtle part is WHERE the fallback goes. A single `or vector(1)` wrapping
+# the whole ratio looks right and is silently wrong: when every request returns
+# 500 there are no 2xx series, so the numerator is empty, the whole ratio is
+# empty, and the fallback reports 1.0 -- a 100%-broken canary reads as healthy.
+# The 2xx sum therefore degrades to 0 *before* the division, and only the
+# no-data-at-all case (cold start, empty denominator) falls back to 1.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: orders
+  labels:
+    app: orders-api
+spec:
+  args:
+    - name: canary-hash
+  metrics:
+    - name: success-rate
+      interval: 20s
+      initialDelay: 45s
+      failureLimit: 2
+      # Errors (empty result, Prometheus unreachable) are counted separately
+      # from failures. 8 * 20s = ~2.5 min of grace before an error storm aborts.
+      consecutiveErrorLimit: 8
+      successCondition: result[0] >= 0.95
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc.cluster.local
+          query: |
+            (
+              (sum(rate(http_requests_total{namespace="orders",route="/api/orders",status=~"2..",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m])) or on() vector(0))
+              /
+              clamp_min(sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m])), 0.001)
+            )
+            or on() vector(1)
+    # Guard rail: a canary that receives no traffic at all is not "healthy", it
+    # is unmeasured. This metric makes that state fail loudly instead of letting
+    # an empty success-rate pass for a good one.
+    - name: canary-request-volume
+      interval: 20s
+      initialDelay: 60s
+      failureLimit: 2
+      consecutiveErrorLimit: 8
+      successCondition: result[0] > 0
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc.cluster.local
+          query: |
+            sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m]))

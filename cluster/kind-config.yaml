@@ -1,0 +1,22 @@
+# Kind cluster used by the whole demo.
+# Ports 8080/8443 are mapped to the ingress-nginx controller's hostPorts (80/443)
+# so the app is reachable from the host without any privileged port binding --
+# which is what makes this work on a rootless podman setup.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: orders-demo
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP

@@ -1,0 +1,23 @@
+# Stable ingress: the only ingress defined in Git.
+# Argo Rollouts generates orders-api-canary (with the canary-weight annotation)
+# and the orders-api-rollouts-stable alias on its own -- do not commit those.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: orders-api
+  namespace: orders
+  labels:
+    app: orders-api
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: orders.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: orders-api-stable
+                port:
+                  number: 80

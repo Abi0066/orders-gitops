@@ -1,0 +1,56 @@
+# Constant load generator.
+#
+# Without it the canary analysis is theatre: the only traffic would be kubelet
+# probes and Prometheus scrapes, all of which return 200, so a 100%-broken
+# version would still show ~100% success and never roll back.
+#
+# It hits the ingress (not the services) so requests actually go through the
+# nginx weight split that Argo Rollouts configures.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: orders
+  labels:
+    app: loadgen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loadgen
+  template:
+    metadata:
+      labels:
+        app: loadgen
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: loadgen
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "load generator starting"
+              while true; do
+                for i in $(seq 1 20); do
+                  wget -q -O /dev/null --header='Host: orders.local' \
+                    http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/api/orders || true
+                done
+                sleep 1
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

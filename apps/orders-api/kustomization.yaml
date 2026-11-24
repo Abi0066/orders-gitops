@@ -1,0 +1,12 @@
+# Explicit ordering: the namespace must exist before the namespaced resources.
+# ArgoCD applies a plain directory alphabetically, which would create the
+# AnalysisTemplate before its namespace and fail the first sync.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - services.yaml
+  - analysis-template.yaml
+  - rollout.yaml
+  - ingress.yaml
+  - loadgen.yaml

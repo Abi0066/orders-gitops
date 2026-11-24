@@ -1,0 +1,38 @@
+# Two services, both selecting app=orders-api.
+# Argo Rollouts rewrites their selectors to add rollouts-pod-template-hash
+# (stable -> previous ReplicaSet hash, canary -> new one), which is what makes
+# "stable" and "canary" actually target different pods. Never hardcode the hash
+# label here: Rollouts owns it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-api-stable
+  namespace: orders
+  labels:
+    app: orders-api
+spec:
+  type: ClusterIP
+  selector:
+    app: orders-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-api-canary
+  namespace: orders
+  labels:
+    app: orders-api
+spec:
+  type: ClusterIP
+  selector:
+    app: orders-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

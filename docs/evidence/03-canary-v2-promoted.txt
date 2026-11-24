@@ -1,0 +1,50 @@
+Name:            orders-api
+Namespace:       orders
+Status:          [32m✔[0m Healthy
+Strategy:        Canary
+  Step:          5/5
+  SetWeight:     100
+  ActualWeight:  100
+Images:          ghcr.io/abi0066/orders-api:v1
+                 ghcr.io/abi0066/orders-api:v2 ([32mstable[0m)
+Replicas:
+  Desired:       5
+  Current:       10
+  Updated:       5
+  Ready:         10
+  Available:     10
+
+NAME                                    KIND         STATUS        AGE    INFO
+⟳ orders-api                            Rollout      [32m✔[0m Healthy     42m    
+├──# revision:20                                                          
+│  ├──⧉ [32morders-api-647df887f7[0m           ReplicaSet   [32m✔[0m Healthy     33m    [32mstable[0m
+│  │  ├──□ orders-api-647df887f7-2p89s  Pod          [32m✔[0m Running     5m43s  ready:1/1
+│  │  ├──□ orders-api-647df887f7-5rlhp  Pod          [32m✔[0m Running     101s   ready:1/1
+│  │  ├──□ orders-api-647df887f7-bdnsx  Pod          [32m✔[0m Running     101s   ready:1/1
+│  │  ├──□ orders-api-647df887f7-bh5rs  Pod          [32m✔[0m Running     7s     ready:1/1
+│  │  └──□ orders-api-647df887f7-cp977  Pod          [32m✔[0m Running     7s     ready:1/1
+│  └──α [0morders-api-647df887f7-20[0m        AnalysisRun  [32m✔[0m Successful  3m11s  [32m✔[0m 15
+├──# revision:19                                                          
+│  └──⧉ orders-api-7d8889c5bf           ReplicaSet   [32m✔[0m Healthy     42m    delay:26s
+│     ├──□ orders-api-7d8889c5bf-v8k65  Pod          [32m✔[0m Running     15m    ready:1/1
+│     ├──□ orders-api-7d8889c5bf-677lb  Pod          [32m✔[0m Running     13m    ready:1/1
+│     ├──□ orders-api-7d8889c5bf-xg4wl  Pod          [32m✔[0m Running     13m    ready:1/1
+│     ├──□ orders-api-7d8889c5bf-tfgfl  Pod          [32m✔[0m Running     12m    ready:1/1
+│     └──□ orders-api-7d8889c5bf-w8xgd  Pod          [32m✔[0m Running     12m    ready:1/1
+├──# revision:18                                                          
+│  └──α [0morders-api-647df887f7-18[0m        AnalysisRun  [32m✔[0m Successful  5m40s  [32m✔[0m 11
+├──# revision:16                                                          
+│  ├──⧉ orders-api-77c98d5c5b           ReplicaSet   [0m•[0m ScaledDown  29m    delay:passed
+│  └──α [0morders-api-77c98d5c5b-16[0m        AnalysisRun  [31m✖[0m Failed      10m    [32m✔[0m 2,[31m✖[0m 3
+├──# revision:15                                                          
+│  └──α [0morders-api-647df887f7-15[0m        AnalysisRun  [32m✔[0m Successful  11m    
+├──# revision:14                                                          
+│  └──α [0morders-api-7d8889c5bf-14[0m        AnalysisRun  [32m✔[0m Successful  15m    [32m✔[0m 15
+├──# revision:13                                                          
+│  └──α [0morders-api-77c98d5c5b-13[0m        AnalysisRun  [31m✖[0m Failed      19m    [32m✔[0m 2,[31m✖[0m 3
+├──# revision:10                                                          
+│  └──α [0morders-api-77c98d5c5b-10[0m        AnalysisRun  [32m✔[0m Successful  23m    [32m✔[0m 15
+└──# revision:5                                                           
+   └──α [0morders-api-77c98d5c5b-5[0m         AnalysisRun  [31m⚠[0m Error       29m    [32m✔[0m 4,[31m⚠[0m 7
+--- trafic réellement servi (attendu : 100% v2) ---
+     20 v2

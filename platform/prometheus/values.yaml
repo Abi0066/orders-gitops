@@ -1,0 +1,30 @@
+# Helm values for prometheus-community/prometheus.
+# The chart's default install is ~1GB with five components; three of them are
+# useless (or broken) in a Kind single-node cluster, and the TSDB is thrown away
+# at every cluster recreation anyway.
+alertmanager:
+  enabled: false
+kube-state-metrics:
+  enabled: false
+prometheus-node-exporter:
+  enabled: false
+prometheus-pushgateway:
+  enabled: false
+
+server:
+  persistentVolume:
+    enabled: false
+  retention: 2h
+  global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  # serverFiles.prometheus.yml from the chart already ships a kubernetes-pods
+  # job: it keeps pods annotated prometheus.io/scrape="true" and labelmaps their
+  # labels, which is what exposes rollouts-pod-template-hash to PromQL.

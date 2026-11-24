@@ -1,0 +1,114 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "21"
+  creationTimestamp: "2026-11-24T10:02:27Z"
+  generation: 8
+  labels:
+    app: orders-api
+    rollout-type: Background
+    rollouts-pod-template-hash: 77c98d5c5b
+  name: orders-api-77c98d5c5b-21
+  namespace: orders
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Rollout
+    name: orders-api
+    uid: 5acec77a-438d-4b3c-940c-c0a1939ad945
+  resourceVersion: "30888"
+  uid: 211cd208-ee06-4294-868b-6448f3daa3a8
+spec:
+  args:
+  - name: canary-hash
+    value: 77c98d5c5b
+  metrics:
+  - consecutiveErrorLimit: 8
+    failureLimit: 2
+    initialDelay: 45s
+    interval: 20s
+    name: success-rate
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local
+        authentication:
+          oauth2: {}
+          sigv4: {}
+        query: |
+          (
+            (sum(rate(http_requests_total{namespace="orders",route="/api/orders",status=~"2..",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m])) or on() vector(0))
+            /
+            clamp_min(sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m])), 0.001)
+          )
+          or on() vector(1)
+    successCondition: result[0] >= 0.95
+  - consecutiveErrorLimit: 8
+    failureLimit: 2
+    initialDelay: 60s
+    interval: 20s
+    name: canary-request-volume
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local
+        authentication:
+          oauth2: {}
+          sigv4: {}
+        query: |
+          sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="{{args.canary-hash}}"}[2m]))
+    successCondition: result[0] > 0
+status:
+  completedAt: "2026-11-24T10:03:52Z"
+  dryRunSummary: {}
+  message: Metric "success-rate" assessed Failed due to failed (3) > failureLimit
+    (2)
+  metricResults:
+  - count: 3
+    failed: 3
+    measurements:
+    - finishedAt: "2026-11-24T10:03:12Z"
+      phase: Failed
+      startedAt: "2026-11-24T10:03:12Z"
+      value: '[0]'
+    - finishedAt: "2026-11-24T10:03:32Z"
+      phase: Failed
+      startedAt: "2026-11-24T10:03:32Z"
+      value: '[0]'
+    - finishedAt: "2026-11-24T10:03:52Z"
+      phase: Failed
+      startedAt: "2026-11-24T10:03:52Z"
+      value: '[0]'
+    metadata:
+      ResolvedPrometheusQuery: |
+        (
+          (sum(rate(http_requests_total{namespace="orders",route="/api/orders",status=~"2..",rollouts_pod_template_hash="77c98d5c5b"}[2m])) or on() vector(0))
+          /
+          clamp_min(sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="77c98d5c5b"}[2m])), 0.001)
+        )
+        or on() vector(1)
+    name: success-rate
+    phase: Failed
+  - consecutiveSuccess: 2
+    count: 2
+    measurements:
+    - finishedAt: "2026-11-24T10:03:27Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:03:27Z"
+      value: '[1.7702416666666667]'
+    - finishedAt: "2026-11-24T10:03:47Z"
+      phase: Successful
+      startedAt: "2026-11-24T10:03:47Z"
+      value: '[2.2882687499999994]'
+    metadata:
+      ResolvedPrometheusQuery: |
+        sum(rate(http_requests_total{namespace="orders",route="/api/orders",rollouts_pod_template_hash="77c98d5c5b"}[2m]))
+    name: canary-request-volume
+    phase: Successful
+    successful: 2
+  phase: Failed
+  runSummary:
+    count: 2
+    failed: 1
+    successful: 1
+  startedAt: "2026-11-24T10:02:27Z"

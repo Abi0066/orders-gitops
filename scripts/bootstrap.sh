@@ -11,6 +11,7 @@ cd "$(dirname "$0")/.."
 
 CLUSTER=${CLUSTER:-orders-demo}
 ROLLOUTS_VERSION=${ROLLOUTS_VERSION:-v1.10.2}
+ARGOCD_VERSION=${ARGOCD_VERSION:-v3.6.2}
 INGRESS_VERSION=${INGRESS_VERSION:-controller-v1.15.1}
 PROM_CHART_VERSION=${PROM_CHART_VERSION:-30.0.0}
 API_DIR=${API_DIR:-../orders-api}
@@ -76,6 +77,19 @@ else
 fi
 kubectl wait --for=condition=Ready pods --all -n monitoring --timeout=240s
 
+# --- 4b. ArgoCD --------------------------------------------------------------
+echo "== argocd $ARGOCD_VERSION =="
+kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply --server-side --force-conflicts -n argocd \
+  -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
+# The repo-server dies with "couldn't initialize inotify: too many open files"
+# when the host's fs.inotify.max_user_instances (128 by default) is already
+# saturated by the Kind node's own processes. Disabling the GPG keyring watcher
+# costs nothing here and avoids the extra inotify instance. With root, the other
+# fix is: sudo sysctl -w fs.inotify.max_user_instances=1024
+kubectl set env deploy/argocd-repo-server -n argocd ARGOCD_GPG_ENABLED=false
+kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
+
 # --- 5. images ---------------------------------------------------------------
 echo "== building orders-api images =="
 for v in v1 v2 v3; do
@@ -89,6 +103,11 @@ echo "== applying apps/orders-api =="
 kubectl apply -k apps/orders-api
 kubectl wait --for=condition=Available deployment/loadgen -n orders --timeout=180s
 kubectl argo rollouts status orders-api -n orders --timeout 240s || true
+
+# --- 7. ArgoCD Application (the GitOps loop) ---------------------------------
+echo "== applying the ArgoCD Application =="
+kubectl apply -f platform/argocd/application.yaml
+echo "(ArgoCD will reconcile apps/orders-api from the repoURL in that manifest)"
 
 echo
 echo "Ready. Next:"

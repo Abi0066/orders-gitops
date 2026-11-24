@@ -7,13 +7,17 @@ cluster with **Argo Rollouts** (canary), **ingress-nginx** (real traffic weights
 The point of the project is not the CRUD API — it is the delivery pipeline, and
 specifically this: **a broken release gets rolled back automatically because a
 Prometheus query said so, and a healthy one gets promoted because the same query
-said so.** Both runs are captured in [`docs/evidence/`](docs/evidence/).
+said so.** Releases are driven by Git: a commit under `apps/orders-api/` is
+reconciled by **ArgoCD**, which hands the new revision to **Argo Rollouts**.
+Both runs, through both paths, are captured in [`docs/evidence/`](docs/evidence/).
 
 ```
-$ ./scripts/demo.sh
+$ ./scripts/demo.sh          # kubectl-driven:  promote v2 / auto-rollback v3
+$ ./scripts/demo-gitops.sh   # same, but each step is a git commit + push
 A. v2 healthy  ->  weight 20% -> 50% -> 100%   AnalysisRun: Successful
 B. v3 failing  ->  success-rate = 0            AnalysisRun: Failed -> RolloutAborted
-                   traffic stays on v2
+                   traffic stays on v2, ArgoCD shows Degraded, then the release
+                   is reverted in Git and the app converges back to Healthy
 ```
 
 ---
@@ -22,6 +26,7 @@ B. v3 failing  ->  success-rate = 0            AnalysisRun: Failed -> RolloutAbo
 
 | Capability | How |
 |---|---|
+| GitOps reconciliation | ArgoCD `Application` on `apps/orders-api`, automated sync, drift visible |
 | Canary with real traffic weights (not just pod ratios) | ingress-nginx annotations driven by `trafficRouting.nginx` |
 | Metric-based promotion **and** rollback | `AnalysisTemplate` querying Prometheus, `successCondition: result[0] >= 0.95` |
 | Measurement scoped to the canary only | PromQL filtered on `rollouts_pod_template_hash` |
@@ -63,7 +68,8 @@ Verified on Fedora 44 with **Podman 6.2 in rootless mode** (no Docker daemon, no
 
 In-cluster versions are pinned in `scripts/bootstrap.sh`:
 Kubernetes `v1.37.0` (Kind node image), ingress-nginx `controller-v1.15.1`,
-argo-rollouts `v1.10.2`, prometheus-community/prometheus chart `30.0.0`.
+argo-rollouts `v1.10.2`, argo-cd `v3.6.2`,
+prometheus-community/prometheus chart `30.0.0`.
 
 ## 4. Quick start
 
@@ -71,8 +77,17 @@ argo-rollouts `v1.10.2`, prometheus-community/prometheus chart `30.0.0`.
 git clone <this repo> && cd orders-gitops
 git clone <orders-api repo> ../orders-api      # sibling directory
 
-./scripts/bootstrap.sh   # cluster + ingress + rollouts + prometheus + images + app
-./scripts/demo.sh        # the two release scenarios, writes docs/evidence/
+./scripts/bootstrap.sh     # cluster + ingress + rollouts + prometheus + argocd + images + app
+./scripts/demo.sh          # the two release scenarios applied with kubectl
+./scripts/demo-gitops.sh   # the same two scenarios released through Git + ArgoCD
+```
+
+ArgoCD UI (port 8080 is already taken by the ingress on the host):
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8081:443
+open https://localhost:8081          # user: admin
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 ```
 
 Check the app from the host — the ingress is published on **8080** (privileged
@@ -183,7 +198,60 @@ parenthesise; `promtool query instant` or the Prometheus UI is the sanity check.
   project will use once images are pushed to GHCR.
 - `imagePullPolicy: IfNotPresent` is mandatory, otherwise Kind tries Docker Hub.
 
-## 6. How the analysis is wired
+## 6. The GitOps loop (ArgoCD)
+
+`platform/argocd/application.yaml` is applied once with `kubectl` — after that, Git
+is the only source of truth for `apps/orders-api`:
+
+```yaml
+source:
+  repoURL: https://github.com/Abi0066/orders-gitops
+  targetRevision: main
+  path: apps/orders-api
+syncPolicy:
+  automated:
+    prune: false     # Rollouts creates the canary ingress and rewrites the selectors
+    selfHeal: false  # an out-of-band deploy-version.sh stays visible as a diff
+ignoreDifferences:
+  - kind: Service
+    jsonPointers: [/spec/selector]
+```
+
+Why each choice:
+
+- **`prune: false`** — the `orders-api-orders-api-canary` ingress and the hash in
+  the two Services' selectors are created by the Rollouts controller at runtime.
+  They are not in Git, and pruning them mid-canary breaks the traffic split.
+- **`ignoreDifferences` on `/spec/selector`** — Rollouts owns that field; without
+  the exception the Application is permanently `OutOfSync`.
+- **`selfHeal: false`** — deliberate for a demo: `scripts/deploy-version.sh` applies
+  a version *without* committing, and that must stay visible as `OutOfSync` instead
+  of being reverted under your feet. In a real setup you enable it and release only
+  through Git.
+
+Two behaviours that look like bugs and are not:
+
+- ArgoCD reports a canary sitting in a pause step as **`Suspended`**, not
+  `Progressing`: an app flapping `Suspended → Healthy` during a rollout is normal.
+- When the analysis aborts a release, only the *pods* go back — the Rollout **spec**
+  still points at the bad version. ArgoCD then shows `Synced` + `Degraded`: Git and
+  the cluster agree on what was asked, not on what is serving. The remediation is a
+  revert commit, which is exactly what step C of `demo-gitops.sh` does.
+
+### repo-server and the inotify limit
+
+Where `fs.inotify.max_user_instances` (128 by default) is already saturated by the
+Kind node's own processes, `argocd-repo-server` CrashLoops with:
+
+```
+failed to create fsnotify Watcher: couldn't initialize inotify: too many open files
+```
+
+`bootstrap.sh` sets `ARGOCD_GPG_ENABLED=false` on the repo-server, which skips the
+GPG keyring watcher — no root needed. With root, the general fix is
+`sudo sysctl -w fs.inotify.max_user_instances=1024`.
+
+## 7. How the analysis is wired
 
 `apps/orders-api/rollout.yaml` (excerpt):
 
@@ -218,21 +286,24 @@ kubectl get ingress -n orders -o json | jq '.items[] | {name:.metadata.name, w:.
 ./scripts/check-analysis-promql.sh <canary-hash>   # runs the query against Prometheus
 ```
 
-## 7. Repository layout
+## 8. Repository layout
 
 ```
 cluster/kind-config.yaml          Kind cluster (ports 8080/8443, ingress-ready label)
 platform/prometheus/values.yaml   chart values: no alertmanager/node-exporter/kube-state-metrics
+platform/argocd/application.yaml  the ArgoCD Application (GitOps entry point)
 apps/orders-api/                  namespace, services, ingress, Rollout, AnalysisTemplate, loadgen
-scripts/bootstrap.sh              cluster + platform + images + app, from zero
-scripts/demo.sh                   scenario A (promote) and B (automatic rollback)
-scripts/deploy-version.sh         render the Rollout for v1/v2/v3 (+ FAIL_RATE)
+scripts/bootstrap.sh              cluster + platform + ArgoCD + images + app, from zero
+scripts/demo.sh                   scenario A (promote) and B (rollback), applied with kubectl
+scripts/demo-gitops.sh            same scenarios, released through Git + ArgoCD
+scripts/deploy-version.sh         render the Rollout for v1/v2/v3 (+ FAIL_RATE), kubectl apply
+scripts/bump-and-push.sh          render + commit + push a release, then wait for ArgoCD
 scripts/render-version.py         deterministic manifest rendering (no sed on YAML)
 scripts/check-analysis-promql.sh  sanity-check the analysis query against Prometheus
-docs/evidence/                    captured output of the two scenarios
+docs/evidence/                    captured output: 01-05 kubectl path, 06-08 GitOps path
 ```
 
-## 8. Deliberate simplifications
+## 9. Deliberate simplifications
 
 - **The image is identical for v1, v2 and v3.** The release is defined by the tag
   and by `APP_VERSION`/`FAIL_RATE`, so a failure can be reproduced without patching
@@ -243,17 +314,12 @@ docs/evidence/                    captured output of the two scenarios
   enough and keeps the cluster small (~1 GB RAM saved).
 - **No ingress TLS**, no persistence, single-node cluster: this is a demo rig.
 
-## 9. Not done yet (next increments)
+## 10. Not done yet (next increments)
 
-- **ArgoCD is not wired in.** Today the manifests are applied with
-  `kubectl apply -k apps/orders-api`; the pipeline behaviour is identical, but the
-  sync is manual. The plan is an `Application` pointing at this repo's
-  `apps/orders-api` path, with `syncPolicy.automated` and **no** `selfHeal` (so an
-  out-of-band `deploy-version.sh` is visible as `OutOfSync` instead of being
-  silently reverted while demonstrating).
-- **CI**: `orders-api` has a test + build + Trivy workflow, but nothing pushes to
-  GHCR or bumps the tag in this repo yet — do not read the pipeline as a complete
-  CI/CD loop.
+- **No image pipeline.** `orders-api` has a test + build + Trivy workflow, but
+  nothing pushes to GHCR and nothing bumps the tag in this repo: the demo images
+  reach Kind through `kind load`. Do not read the pipeline as a complete CI/CD loop.
+- **No ingress TLS**, no persistence, single-node cluster: this is a demo rig.
 - Progressive delivery of a *database-backed* service (migrations, backwards
   compatibility) is out of scope here.
 

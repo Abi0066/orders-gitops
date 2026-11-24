@@ -1,0 +1,17 @@
+=== ArgoCD ===
+sync=Synced revision=a5dbb45409f836f4506fccf9edcb1bc6c9b79ca8 health=Healthy
+=== Rollout ===
+Name:            orders-api
+Namespace:       orders
+Status:          [32m✔[0m Healthy
+Strategy:        Canary
+  Step:          5/5
+  SetWeight:     100
+  ActualWeight:  100
+Images:          ghcr.io/abi0066/orders-api:v2 ([32mstable[0m)
+Replicas:
+  Desired:       5
+  Current:       5
+  Updated:       5
+=== trafic (attendu 100% v2) ===
+     20 v2

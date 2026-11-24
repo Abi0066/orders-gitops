@@ -1,0 +1,40 @@
+# ArgoCD Application -- the entry point of the GitOps loop.
+#
+# Applied once by hand (bootstrap):
+#   kubectl apply -f platform/argocd/application.yaml
+# after which every change to apps/orders-api in Git is reconciled by ArgoCD.
+#
+# Two deliberate choices:
+#  * prune: false -- Argo Rollouts creates the canary ingress and the services'
+#    selectors at runtime; those objects are not in Git and must never be pruned.
+#  * selfHeal: false -- an out-of-band `scripts/deploy-version.sh` (bypassing Git)
+#    shows up as OutOfSync instead of being silently reverted mid-demonstration.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders-api
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Abi0066/orders-gitops
+    targetRevision: main
+    path: apps/orders-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: orders
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+  ignoreDifferences:
+    # Argo Rollouts rewrites the two Services' selectors with the pod-template
+    # hash it owns. Without this, the Application would be OutOfSync forever.
+    - group: ""
+      kind: Service
+      jsonPointers:
+        - /spec/selector

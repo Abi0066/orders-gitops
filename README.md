@@ -236,7 +236,10 @@ Two behaviours that look like bugs and are not:
 - When the analysis aborts a release, only the *pods* go back — the Rollout **spec**
   still points at the bad version. ArgoCD then shows `Synced` + `Degraded`: Git and
   the cluster agree on what was asked, not on what is serving. The remediation is a
-  revert commit, which is exactly what step C of `demo-gitops.sh` does.
+  revert commit, which is exactly what step C of `demo-gitops.sh` does. This is why
+  `docs/evidence/07-argocd-auto-rollback.txt` still lists the bad image as
+  `(canary)` — at `SetWeight: 0`, with the traffic sample showing 100% of requests
+  answered by the previous version.
 
 ### repo-server and the inotify limit
 

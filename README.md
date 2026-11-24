@@ -116,11 +116,12 @@ Release a version by hand (this is what a Git commit + ArgoCD sync would do):
 ./scripts/deploy-version.sh v3 100    # 100% of /api/orders returns 500
 ```
 
-## 5. The four traps this project actually solves
+## 5. The five traps this project actually solves
 
 These are the reason the repo exists: the naive version of the pipeline either
-**never rolls back** or **rolls back the healthy release**. Each one is a line or
-two of YAML, and each one is invisible until you run the demo.
+**never rolls back** or **rolls back the healthy release**. Each one is a line or two
+of YAML, a flag, or a cluster setting — and each one is invisible until you run the
+demo.
 
 ### 5.1 Probes and scrapes dilute the success rate
 
@@ -359,7 +360,7 @@ Dockerfile, same bytes. To run against GHCR instead, put a `sha-<commit>` tag in
 - Progressive delivery of a *database-backed* service (migrations, backwards
   compatibility) is out of scope here.
 
-## 10. Cleanup
+## 12. Cleanup
 
 ```bash
 kind delete cluster --name orders-demo

@@ -1,10 +1,10 @@
 === ArgoCD (Degraded attendu : la spec v3 est dans Git, les pods servent v2) ===
-sync=Synced revision=550f74e81f87f6f3cd55f53ebee808009357b3fc health=Degraded
+sync=Synced revision=6637c761975aa4b64a01f7e2032d4732b3f16354 health=Degraded
 === Rollout ===
 Name:            orders-api
 Namespace:       orders
 Status:          [31m✖[0m Degraded
-Message:         RolloutAborted: Rollout aborted update to revision 24: Background analysis phase error/failed: Metric "success-rate" assessed Failed due to failed (3) > failureLimit (2)
+Message:         RolloutAborted: Rollout aborted update to revision 2: Background analysis phase error/failed: Metric "success-rate" assessed Failed due to failed (3) > failureLimit (2)
 Strategy:        Canary
   Step:          0/5
   SetWeight:     0
@@ -16,6 +16,6 @@ Replicas:
   Current:       6
   Updated:       1
 === message d'abandon ===
-RolloutAborted: Rollout aborted update to revision 24: Background analysis phase error/failed: Metric "success-rate" assessed Failed due to failed (3) > failureLimit (2)
+RolloutAborted: Rollout aborted update to revision 2: Background analysis phase error/failed: Metric "success-rate" assessed Failed due to failed (3) > failureLimit (2)
 === trafic (attendu 100% v2) ===
      20 v2

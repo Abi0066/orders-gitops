@@ -1,5 +1,5 @@
 === ArgoCD ===
-sync=Synced revision=a5dbb45409f836f4506fccf9edcb1bc6c9b79ca8 health=Healthy
+sync=Synced revision=0e811bffd0df37c820106c6cbb20017cc835e611 health=Healthy
 === Rollout ===
 Name:            orders-api
 Namespace:       orders

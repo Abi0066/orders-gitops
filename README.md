@@ -82,6 +82,9 @@ git clone <orders-api repo> ../orders-api      # sibling directory
 ./scripts/demo-gitops.sh   # the same two scenarios released through Git + ArgoCD
 ```
 
+`bootstrap.sh` was verified end to end on a freshly deleted cluster: **~7 minutes**,
+no root, no Docker daemon, Podman in rootless mode.
+
 ArgoCD UI (port 8080 is already taken by the ingress on the host):
 
 ```bash
@@ -317,12 +320,30 @@ docs/evidence/                    captured output: 01-05 kubectl path, 06-08 Git
   enough and keeps the cluster small (~1 GB RAM saved).
 - **No ingress TLS**, no persistence, single-node cluster: this is a demo rig.
 
-## 10. Not done yet (next increments)
+## 10. CI and images
 
-- **No image pipeline.** `orders-api` has a test + build + Trivy workflow, but
-  nothing pushes to GHCR and nothing bumps the tag in this repo: the demo images
-  reach Kind through `kind load`. Do not read the pipeline as a complete CI/CD loop.
-- **No ingress TLS**, no persistence, single-node cluster: this is a demo rig.
+`orders-api`'s GitHub Actions workflow runs the tests, builds the image, scans it
+with Trivy and — on `main` only, and only after the scan passes — pushes it to GHCR:
+
+- `ghcr.io/abi0066/orders-api:sha-<commit>` (immutable)
+- `ghcr.io/abi0066/orders-api:latest`
+
+The package is publicly pullable — `podman pull ghcr.io/abi0066/orders-api:sha-<commit>`
+works with no credentials (verified).
+
+What is deliberately **not** automated: nothing bumps the tag in this repository.
+Pinning a release here is a commit (`scripts/bump-and-push.sh`), so a merge upstream
+can never deploy by accident — the release step stays explicit.
+
+The demo itself runs locally built `v1`/`v2`/`v3` tags loaded with `kind load`: it
+needs three distinguishable versions and no registry credentials at run time. Same
+Dockerfile, same bytes. To run against GHCR instead, put a `sha-<commit>` tag in
+`apps/orders-api/rollout.yaml` and drop the `kind load` loop from `bootstrap.sh`.
+
+## 11. Not done yet (next increments)
+
+- **No automatic tag bump** — see section 10: releasing is a commit on purpose.
+- **No image signature / provenance** (`cosign`), no SBOM published next to the image.
 - Progressive delivery of a *database-backed* service (migrations, backwards
   compatibility) is out of scope here.
 
